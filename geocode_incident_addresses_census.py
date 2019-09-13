@@ -1,20 +1,18 @@
 # -*- coding: utf-8 -*-
 """
-Geocode those with addresses.
+Geocode incident addresses.
 """
 import pandas as pd
 from pandas.io.json import json_normalize
 import censusgeocode as cg
 import math, os, geocoder, json, requests, datetime
 
-# create function to call OSM and Bing
 def callWSRBLocator(filename):
 
     print (datetime.datetime.now(),'    Geocoding addresses')
     t3 = datetime.datetime.now()
     
     df = pd.read_csv(filename)
-    
     name, ext = os.path.splitext(filename)
     
     folder = r'\\FS-SEA-1\Protection_Data_Files\Projects\19_022_NFIRS_EDA\IL_wsrb\geocoded_results'
@@ -62,6 +60,7 @@ def joinFrames(df_right):
     
     df_left = pd.read_csv(r'C:\Users\zhuzhux\Desktop\19_017_userAccessCommentAddress\lastday_AccessComments.csv')
     
+    # change to pd.merge
     df_join = pd.concat([df_left, df_right], sort=True)
     
     df_join.to_csv(r'C:\Users\zhuzhux\Desktop\19_017_userAccessCommentAddress\lastday_AccessComments_latlong.csv')
@@ -72,8 +71,6 @@ def callCensusBulkGeocoder(filename):
     t5 = datetime.datetime.now()
     
     df = pd.read_csv(filename)
-#    print(df.sample(n=1))
-    
 #    name, ext = os.path.splitext(filename)
     
     folder = r'\\fs-sea-1\Protection_Data_Files\Projects\19_022_NFIRS_EDA\IL\geocoded_results'
@@ -83,7 +80,6 @@ def callCensusBulkGeocoder(filename):
     
     try:
         result = cg.addressbatch(filename)
-#        print(result[0])
         df = pd.DataFrame(result)     
         
     except Exception:
@@ -103,11 +99,6 @@ def callCensusSingleGeocoder(df):
     print (datetime.datetime.now(),'    Geocoding addresses with Census Single Geocoder')
     t7 = datetime.datetime.now()
     
-#    print(filename)
-#    df = pd.read_csv(filename)
-#    print(df.sample(n=1))
-#    print(df.head(n=1))
-    
     try:
         #cg.address(street, city, state, zipcode)
 #        df = pd.read_csv(filename, names=['AddressID', 'StreetAddress', 'CITY','STATE', 'ZIP5'])
@@ -118,22 +109,17 @@ def callCensusSingleGeocoder(df):
                 pass
             else:
                 df.at[j, 'parsed'] = '-'
-                #print(df.loc[j, 'address'])
                 #payload=" '{}' ".format(df_temp.loc[j, 'address'])
                 #cg.onelineaddress('1600 Pennsylvania Avenue, Washington, DC', returntype='locations')
                 g = cg.onelineaddress(df.loc[j, 'address'], returntype='locations')
                 #g = cg.onelineaddress(payload)
-                if len(g)==0:
-                    #print ('g is empty')
-                    
+                if len(g)==0:                  
                     pass   
                 else:
-#                    print(g[0]['coordinates']['x'], g[0]['coordinates']['y'] )
                     df.at[j, 'lat'] = g[0]['coordinates']['y']
                     df.at[j, 'lon'] = g[0]['coordinates']['x']
                     df.at[j, 'geocoder'] = 'Census Single'
                     df.at[j, 'parsed'] = g[0]['matchedAddress']
-                    #df.at[j, 'match'] = True
         
     except Exception:
         print('Something went wrong')
@@ -171,7 +157,6 @@ def callOSMBing(df):
         else:
             # using OSM to geocode
             # https://operations.osmfoundation.org/policies/nominatim/
-            #print(df.loc[j, 'address'])
             g = geocoder.osm(df.loc[j, 'address'])
             if g:
                 df.at[j, 'lat'] = g.osm['y']
@@ -179,7 +164,6 @@ def callOSMBing(df):
                 df.at[j, 'geocoder'] = 'OSM'
                 df.at[j, 'parsed'] = g.json['address']           
                 df.at[j, 'confidence'] = g.json['accuracy']
-                #print('OSM')
             else:
                 # using Bing to geocode
                 # https://docs.microsoft.com/en-us/bingmaps/spatial-data-services/geocode-and-data-source-limits
@@ -189,10 +173,6 @@ def callOSMBing(df):
                 df.at[j, 'geocoder'] = 'Bing'
                 df.at[j, 'parsed'] = g.json['address']
                 df.at[j, 'confidence'] = g.json['confidence']
-                #print('bing')
-        
-        #print('parsed address: ', df.at[j, 'parsed'])
-        #print('returned lat lon: ', df.at[j, 'lat'],df.at[j, 'lon'] )
     
     #df.to_csv(r'\\fs-sea-1\Protection_Data_Files\Projects\19_022_NFIRS_EDA\IL\geocoded_results\after_osm_bing.csv')
     print (datetime.datetime.now(),'    Finished geocoding')
